@@ -28,7 +28,11 @@ impl Light {
     ///
     /// `view_light` is camera-from-light: view matrix times the light's world transform.
     pub fn from_m3g(l: &LightData, view_light: &Mat4) -> Light {
-        let mut position = if l.mode == LIGHT_DIRECTIONAL { [0.0, 0.0, 1.0, 0.0] } else { [0.0, 0.0, 0.0, 1.0] };
+        let mut position = if l.mode == LIGHT_DIRECTIONAL {
+            [0.0, 0.0, 1.0, 0.0]
+        } else {
+            [0.0, 0.0, 0.0, 1.0]
+        };
         view_light.transform4(&mut position);
 
         let mut color = math::fill_float_color(l.color);
@@ -123,7 +127,13 @@ fn normalize3(v: [f32; 3]) -> [f32; 3] {
 impl Lighting {
     /// Lit RGBA for one vertex. `eye` and `normal` are in eye space; `normal`
     /// must already be normalised. `back` evaluates the back face (flipped normal).
-    pub fn light_vertex(&self, eye: [f32; 3], normal: [f32; 3], vertex_color: [f32; 4], back: bool) -> [f32; 4] {
+    pub fn light_vertex(
+        &self,
+        eye: [f32; 3],
+        normal: [f32; 3],
+        vertex_color: [f32; 4],
+        back: bool,
+    ) -> [f32; 4] {
         let m = &self.material;
         let (mat_ambient, mat_diffuse) = if m.color_tracking {
             (vertex_color, vertex_color)
@@ -131,7 +141,11 @@ impl Lighting {
             (m.ambient, m.diffuse)
         };
 
-        let n = if back { [-normal[0], -normal[1], -normal[2]] } else { normal };
+        let n = if back {
+            [-normal[0], -normal[1], -normal[2]]
+        } else {
+            normal
+        };
 
         let mut color = [
             m.emission[0] + self.model_ambient[0] * mat_ambient[0],
@@ -147,11 +161,18 @@ impl Lighting {
                     light.position[2] - eye[2],
                 ];
                 let dist = (dot3(&d, &d) as f64).sqrt() as f32;
-                let vp = if dist == 0.0 { d } else { [d[0] / dist, d[1] / dist, d[2] / dist] };
+                let vp = if dist == 0.0 {
+                    d
+                } else {
+                    [d[0] / dist, d[1] / dist, d[2] / dist]
+                };
                 let a = light.attenuation;
                 (vp, 1.0f32 / (a[0] + a[1] * dist + a[2] * dist * dist))
             } else {
-                (normalize3([light.position[0], light.position[1], light.position[2]]), 1.0f32)
+                (
+                    normalize3([light.position[0], light.position[1], light.position[2]]),
+                    1.0f32,
+                )
             };
 
             let mut spot = 1.0f32;
@@ -198,7 +219,12 @@ impl Lighting {
         let alpha = mat_diffuse[3];
         let out = [color[0], color[1], color[2], alpha];
         if self.clamp {
-            [math::limit01(out[0]), math::limit01(out[1]), math::limit01(out[2]), math::limit01(out[3])]
+            [
+                math::limit01(out[0]),
+                math::limit01(out[1]),
+                math::limit01(out[2]),
+                math::limit01(out[3]),
+            ]
         } else {
             out
         }

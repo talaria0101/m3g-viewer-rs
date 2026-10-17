@@ -11,7 +11,9 @@ use crate::anim::KeyframeSequence;
 use crate::math::Mat4;
 use crate::scene::*;
 
-const M3G_MAGIC: [u8; 12] = [0xAB, 0x4A, 0x53, 0x52, 0x31, 0x38, 0x34, 0xBB, 0x0D, 0x0A, 0x1A, 0x0A];
+const M3G_MAGIC: [u8; 12] = [
+    0xAB, 0x4A, 0x53, 0x52, 0x31, 0x38, 0x34, 0xBB, 0x0D, 0x0A, 0x1A, 0x0A,
+];
 /// Mutable images are filled with 0xFF on load, so their size comes from the header alone.
 const MAX_MUTABLE_IMAGE_BYTES: usize = 1 << 28;
 const PNG_MAGIC: [u8; 8] = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
@@ -58,7 +60,9 @@ fn load_named(
 /// *name* (not its resolved path), exactly as the original does.
 fn resolve_path(name: &str, parent: Option<&str>) -> Result<PathBuf> {
     if name.contains(':') {
-        return Err(format!("HTTP external references are not supported: {name}"));
+        return Err(format!(
+            "HTTP external references are not supported: {name}"
+        ));
     }
     let mut target = PathBuf::from(name);
     if !target.is_absolute() {
@@ -79,16 +83,22 @@ fn resolve_path(name: &str, parent: Option<&str>) -> Result<PathBuf> {
 fn load_png(scene: &mut Scene, data: &[u8]) -> Result<Id> {
     let mut decoder = png::Decoder::new(data);
     decoder.set_transformations(png::Transformations::EXPAND | png::Transformations::STRIP_16);
-    let mut reader = decoder.read_info().map_err(|e| format!("Unsupported or corrupt image data: {e}"))?;
+    let mut reader = decoder
+        .read_info()
+        .map_err(|e| format!("Unsupported or corrupt image data: {e}"))?;
     let mut buf = vec![0u8; reader.output_buffer_size()];
-    let info = reader.next_frame(&mut buf).map_err(|e| format!("Unsupported or corrupt image data: {e}"))?;
+    let info = reader
+        .next_frame(&mut buf)
+        .map_err(|e| format!("Unsupported or corrupt image data: {e}"))?;
     let (w, h) = (info.width as usize, info.height as usize);
     let mut rgb = Vec::with_capacity(w * h * 3);
     let channels = info.color_type.samples();
     for px in buf[..info.buffer_size()].chunks(channels) {
         match info.color_type {
             png::ColorType::Rgb | png::ColorType::Rgba => rgb.extend_from_slice(&px[..3]),
-            png::ColorType::Grayscale | png::ColorType::GrayscaleAlpha => rgb.extend_from_slice(&[px[0]; 3]),
+            png::ColorType::Grayscale | png::ColorType::GrayscaleAlpha => {
+                rgb.extend_from_slice(&[px[0]; 3])
+            }
             png::ColorType::Indexed => return Err("indexed PNG was not expanded".into()),
         }
     }
@@ -152,9 +162,7 @@ impl<'a> Cursor<'a> {
     fn f32(&mut self) -> Result<f32> {
         let bits = self.i32()?;
         let exp = bits & 0x7f80_0000;
-        let ok = exp != 0x7f80_0000
-            && bits != i32::MIN
-            && ((bits & 0x007f_ffff) == 0 || exp != 0);
+        let ok = exp != 0x7f80_0000 && bits != i32::MIN && ((bits & 0x007f_ffff) == 0 || exp != 0);
         if ok {
             Ok(f32::from_bits(bits as u32))
         } else {
@@ -251,7 +259,12 @@ impl<'a> Loader<'a> {
                 false => break,
             }
         }
-        Ok(self.loaded.iter().filter(|(_, referenced)| !referenced).map(|(id, _)| *id).collect())
+        Ok(self
+            .loaded
+            .iter()
+            .filter(|(_, referenced)| !referenced)
+            .map(|(id, _)| *id)
+            .collect())
     }
 
     /// Returns false when loading should stop quietly (the original logs and stops).
@@ -290,13 +303,18 @@ impl<'a> Loader<'a> {
                 &payload
             }
             other => {
-                eprintln!("[m3g-viewer] ERROR M3GLoader: Unrecognized compression scheme({other})!!!");
+                eprintln!(
+                    "[m3g-viewer] ERROR M3GLoader: Unrecognized compression scheme({other})!!!"
+                );
                 return Ok(false);
             }
         };
 
         let checksum = adler32(&data[start..start + section_length - 4]);
-        let mut tail = Cursor { data, pos: start + section_length - 4 };
+        let mut tail = Cursor {
+            data,
+            pos: start + section_length - 4,
+        };
         let expected = tail.u32()?;
 
         let mut objects = Cursor::new(body);
@@ -369,7 +387,10 @@ impl<'a> Loader<'a> {
                 Some(*roots.first().ok_or("external reference holds no objects")?)
             }
             other => {
-                return Err(format!("Unrecognized object type {other} ({}).", self.resource_name));
+                return Err(format!(
+                    "Unrecognized object type {other} ({}).",
+                    self.resource_name
+                ));
             }
         };
 
@@ -399,12 +420,7 @@ impl<'a> Loader<'a> {
     }
 
     /// A reference that must be present and of one kind.
-    fn reference_as(
-        &mut self,
-        r: &mut Cursor,
-        what: &str,
-        check: fn(&Kind) -> bool,
-    ) -> Result<Id> {
+    fn reference_as(&mut self, r: &mut Cursor, what: &str, check: fn(&Kind) -> bool) -> Result<Id> {
         self.reference_as_opt(r, what, check)?
             .ok_or_else(|| format!("Null {what} reference"))
     }
@@ -440,8 +456,9 @@ impl<'a> Loader<'a> {
         let track_count = r.u32()?;
         let mut tracks = Vec::new();
         for _ in 0..track_count {
-            let t = self
-                .reference_as(r, "AnimationTrack", |k| matches!(k, Kind::AnimationTrack(_)))?;
+            let t = self.reference_as(r, "AnimationTrack", |k| {
+                matches!(k, Kind::AnimationTrack(_))
+            })?;
             tracks.push(t);
         }
         let parameter_count = r.u32()?;
@@ -472,7 +489,10 @@ impl<'a> Loader<'a> {
 
     fn read_node_data(&mut self, r: &mut Cursor) -> Result<(Object3DData, NodeBase)> {
         let (data, tr) = self.read_transformable_data(r)?;
-        let mut node = NodeBase { tr, ..NodeBase::default() };
+        let mut node = NodeBase {
+            tr,
+            ..NodeBase::default()
+        };
         node.rendering = r.bit()?;
         node.picking = r.bit()?;
         node.alpha_factor = (r.byte()? as f32) / 255.0;
@@ -578,8 +598,9 @@ impl<'a> Loader<'a> {
 
     fn read_animation_track(&mut self, r: &mut Cursor) -> Result<Id> {
         let data = self.read_object3d_data(r)?;
-        let sequence =
-            self.reference_as(r, "KeyframeSequence", |k| matches!(k, Kind::KeyframeSequence(_)))?;
+        let sequence = self.reference_as(r, "KeyframeSequence", |k| {
+            matches!(k, Kind::KeyframeSequence(_))
+        })?;
         let controller = self.reference_as_opt(r, "AnimationController", |k| {
             matches!(k, Kind::AnimationController(_))
         })?;
@@ -593,7 +614,11 @@ impl<'a> Loader<'a> {
                 "AnimationTrack: property {property} cannot take {components} components"
             ));
         }
-        let id = self.scene.add(Kind::AnimationTrack(TrackData { sequence, controller, property }));
+        let id = self.scene.add(Kind::AnimationTrack(TrackData {
+            sequence,
+            controller,
+            property,
+        }));
         self.finish(id, data)
     }
 
@@ -605,8 +630,9 @@ impl<'a> Loader<'a> {
             return Err("Appearance.setLayer: layer out of range".into());
         }
         a.layer = layer;
-        a.compositing_mode = self
-            .reference_as_opt(r, "CompositingMode", |k| matches!(k, Kind::CompositingMode(_)))?;
+        a.compositing_mode = self.reference_as_opt(r, "CompositingMode", |k| {
+            matches!(k, Kind::CompositingMode(_))
+        })?;
         a.fog = self.reference_as_opt(r, "Fog", |k| matches!(k, Kind::Fog(_)))?;
         a.polygon_mode =
             self.reference_as_opt(r, "PolygonMode", |k| matches!(k, Kind::PolygonMode(_)))?;
@@ -754,7 +780,10 @@ impl<'a> Loader<'a> {
     fn read_group(&mut self, r: &mut Cursor) -> Result<Id> {
         let (data, g) = self.read_group_data(r)?;
         let children = g.children.clone();
-        let id = self.scene.add(Kind::Group(GroupData { node: g.node, children: Vec::new() }));
+        let id = self.scene.add(Kind::Group(GroupData {
+            node: g.node,
+            children: Vec::new(),
+        }));
         self.attach_children(id, &children)?;
         self.finish(id, data)
     }
@@ -766,7 +795,10 @@ impl<'a> Loader<'a> {
             self.reference_as_opt(r, "Background", |k| matches!(k, Kind::Background(_)))?;
         let children = g.children.clone();
         let id = self.scene.add(Kind::World(WorldData {
-            group: GroupData { node: g.node, children: Vec::new() },
+            group: GroupData {
+                node: g.node,
+                children: Vec::new(),
+            },
             active_camera: camera,
             background,
             world_time: 0,
@@ -788,15 +820,23 @@ impl<'a> Loader<'a> {
         let pixel_count = (width as usize)
             .checked_mul(height as usize)
             .ok_or("Image2D: size overflows")?;
-        let byte_count = pixel_count.checked_mul(bpp).ok_or("Image2D: size overflows")?;
+        let byte_count = pixel_count
+            .checked_mul(bpp)
+            .ok_or("Image2D: size overflows")?;
         let pixels: Vec<u8> = if mutable {
             if byte_count > MAX_MUTABLE_IMAGE_BYTES {
-                return Err(format!("Image2D: mutable image of {byte_count} bytes is too large"));
+                return Err(format!(
+                    "Image2D: mutable image of {byte_count} bytes is too large"
+                ));
             }
             vec![0xFF; byte_count]
         } else {
             let palette_len = r.u32()? as usize;
-            let palette = if palette_len > 0 { r.bytes(palette_len)?.to_vec() } else { Vec::new() };
+            let palette = if palette_len > 0 {
+                r.bytes(palette_len)?.to_vec()
+            } else {
+                Vec::new()
+            };
             let pixel_len = r.u32()? as usize;
             let raw = r.bytes(pixel_len)?;
             if palette_len != 0 {
@@ -822,7 +862,12 @@ impl<'a> Loader<'a> {
                 raw[..byte_count].to_vec()
             }
         };
-        let id = self.scene.add(Kind::Image2D(Image2DData { format, width, height, data: pixels }));
+        let id = self.scene.add(Kind::Image2D(Image2DData {
+            format,
+            width,
+            height,
+            data: pixels,
+        }));
         self.finish(id, data)
     }
 
@@ -840,7 +885,9 @@ impl<'a> Loader<'a> {
         // counts the rest of the object cannot hold are corrupt (and would allocate wildly).
         let per_key = 4usize.saturating_add(component_count);
         if component_count > r.data.len() - r.pos
-            || keyframe_count.checked_mul(per_key).map_or(true, |need| need > r.data.len() - r.pos)
+            || keyframe_count
+                .checked_mul(per_key)
+                .map_or(true, |need| need > r.data.len() - r.pos)
         {
             return Err("KeyframeSequence: counts exceed the object's data".into());
         }
@@ -883,7 +930,10 @@ impl<'a> Loader<'a> {
                 }
             }
             other => {
-                return Err(format!("Encoding not recognized: {other}({}).", self.resource_name));
+                return Err(format!(
+                    "Encoding not recognized: {other}({}).",
+                    self.resource_name
+                ));
             }
         }
         let id = self.scene.add(Kind::KeyframeSequence(seq));
@@ -954,11 +1004,20 @@ impl<'a> Loader<'a> {
             submeshes.push(self.reference_as(r, "TriangleStripArray", |k| {
                 matches!(k, Kind::TriangleStripArray(_))
             })?);
-            appearances
-                .push(self.reference_as_opt(r, "Appearance", |k| matches!(k, Kind::Appearance(_)))?);
+            appearances.push(
+                self.reference_as_opt(r, "Appearance", |k| matches!(k, Kind::Appearance(_)))?,
+            );
         }
         let node = Self::copy_node(&mut node)?;
-        Ok((data, MeshData { node, vertices, submeshes, appearances }))
+        Ok((
+            data,
+            MeshData {
+                node,
+                vertices,
+                submeshes,
+                appearances,
+            },
+        ))
     }
 
     fn read_mesh(&mut self, r: &mut Cursor) -> Result<Id> {
@@ -988,7 +1047,12 @@ impl<'a> Loader<'a> {
         for w in &weights {
             base_weight -= *w;
         }
-        let id = self.scene.add(Kind::MorphingMesh(MorphingData { mesh, targets, weights, base_weight }));
+        let id = self.scene.add(Kind::MorphingMesh(MorphingData {
+            mesh,
+            targets,
+            weights,
+            base_weight,
+        }));
         self.finish(id, data)
     }
 
@@ -1011,7 +1075,10 @@ impl<'a> Loader<'a> {
             vtx_weights: vec![0; vertex_count * MAX_TRANSFORMS_PER_VERTEX],
         };
         let id = self.scene.add(Kind::SkinnedMesh(skinned));
-        self.scene.node_base_mut(skeleton).expect("a Group is a node").parent = Some(id);
+        self.scene
+            .node_base_mut(skeleton)
+            .expect("a Group is a node")
+            .parent = Some(id);
 
         let bone_count = r.u32()?;
         for _ in 0..bone_count {
@@ -1086,7 +1153,9 @@ impl<'a> Loader<'a> {
         let per = MAX_TRANSFORMS_PER_VERTEX;
         for i in (first_vertex as usize)..((first_vertex + num_vertices) as usize) {
             if (i + 1) * per > skinned.vtx_bones.len() {
-                return Err("SkinnedMesh.addTransform: vertex index beyond the vertex buffer".into());
+                return Err(
+                    "SkinnedMesh.addTransform: vertex index beyond the vertex buffer".into(),
+                );
             }
             let mut min_weight = i32::MAX;
             let mut sel: i32 = -1;
@@ -1131,7 +1200,13 @@ impl<'a> Loader<'a> {
         if crop[2].abs() > 1024 || crop[3].abs() > 1024 {
             return Err("Sprite3D.setCrop: width or height exceeds 1024".into());
         }
-        let id = self.scene.add(Kind::Sprite3D(SpriteData { node, scaled, image, appearance, crop }));
+        let id = self.scene.add(Kind::Sprite3D(SpriteData {
+            node,
+            scaled,
+            image,
+            appearance,
+            crop,
+        }));
         self.finish(id, data)
     }
 
@@ -1204,7 +1279,10 @@ impl<'a> Loader<'a> {
                 indices = Some(v);
             }
             _ => {
-                return Err(format!("Invalid TriangleStripArray encoding ({}).", self.resource_name));
+                return Err(format!(
+                    "Invalid TriangleStripArray encoding ({}).",
+                    self.resource_name
+                ));
             }
         }
         let strip_count = r.u32()? as usize;
@@ -1234,7 +1312,10 @@ impl<'a> Loader<'a> {
                 used.to_vec()
             }
         };
-        let id = self.scene.add(Kind::TriangleStripArray(TriangleStripData { indices, strip_lengths }));
+        let id = self.scene.add(Kind::TriangleStripArray(TriangleStripData {
+            indices,
+            strip_lengths,
+        }));
         self.finish(id, data)
     }
 
@@ -1245,7 +1326,10 @@ impl<'a> Loader<'a> {
         let encoding = r.byte()?;
         let vertex_count = r.i16()? as usize;
         if encoding != 0 && encoding != 1 {
-            return Err(format!("Invalid VertexArray encoding ({}).", self.resource_name));
+            return Err(format!(
+                "Invalid VertexArray encoding ({}).",
+                self.resource_name
+            ));
         }
         if !(1..=65535).contains(&vertex_count) {
             return Err("VertexArray: invalid vertex count".into());
@@ -1330,7 +1414,10 @@ impl<'a> Loader<'a> {
 
         if let Some(c) = self.reference_as_opt(r, "VertexArray", is_array)? {
             let (count, comps, size) = self.array_info(c);
-            if size != 1 || (comps != 3 && comps != 4) || (vertex_count != 0 && count != vertex_count) {
+            if size != 1
+                || (comps != 3 && comps != 4)
+                || (vertex_count != 0 && count != vertex_count)
+            {
                 return Err("VertexBuffer.setColors: invalid array".into());
             }
             vertex_count = count;
@@ -1366,12 +1453,22 @@ impl<'a> Loader<'a> {
 fn valid_component_count(property: i32, count: usize) -> bool {
     match property {
         prop::ALPHA => count == 1,
-        prop::AMBIENT_COLOR | prop::COLOR | prop::DIFFUSE_COLOR | prop::EMISSIVE_COLOR
+        prop::AMBIENT_COLOR
+        | prop::COLOR
+        | prop::DIFFUSE_COLOR
+        | prop::EMISSIVE_COLOR
         | prop::SPECULAR_COLOR => count == 3,
         prop::CROP => count == 2 || count == 4,
-        prop::DENSITY | prop::FAR_DISTANCE | prop::FIELD_OF_VIEW | prop::INTENSITY
-        | prop::NEAR_DISTANCE | prop::PICKABILITY | prop::SHININESS | prop::SPOT_ANGLE
-        | prop::SPOT_EXPONENT | prop::VISIBILITY => count == 1,
+        prop::DENSITY
+        | prop::FAR_DISTANCE
+        | prop::FIELD_OF_VIEW
+        | prop::INTENSITY
+        | prop::NEAR_DISTANCE
+        | prop::PICKABILITY
+        | prop::SHININESS
+        | prop::SPOT_ANGLE
+        | prop::SPOT_EXPONENT
+        | prop::VISIBILITY => count == 1,
         prop::MORPH_WEIGHTS => true,
         prop::ORIENTATION => count == 4,
         prop::SCALE => count == 1 || count == 3,

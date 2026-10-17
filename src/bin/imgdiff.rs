@@ -11,9 +11,13 @@ use std::path::{Path, PathBuf};
 
 fn read_png(path: &Path) -> Result<(usize, usize, Vec<u8>), String> {
     let file = std::fs::File::open(path).map_err(|e| format!("{}: {e}", path.display()))?;
-    let mut reader = png::Decoder::new(file).read_info().map_err(|e| format!("{}: {e}", path.display()))?;
+    let mut reader = png::Decoder::new(file)
+        .read_info()
+        .map_err(|e| format!("{}: {e}", path.display()))?;
     let mut buf = vec![0u8; reader.output_buffer_size()];
-    let info = reader.next_frame(&mut buf).map_err(|e| format!("{}: {e}", path.display()))?;
+    let info = reader
+        .next_frame(&mut buf)
+        .map_err(|e| format!("{}: {e}", path.display()))?;
     if info.bit_depth != png::BitDepth::Eight {
         return Err(format!("{}: only 8-bit PNGs are supported", path.display()));
     }
@@ -22,8 +26,15 @@ fn read_png(path: &Path) -> Result<(usize, usize, Vec<u8>), String> {
     for px in buf[..info.buffer_size()].chunks(channels) {
         match info.color_type {
             png::ColorType::Rgb | png::ColorType::Rgba => rgb.extend_from_slice(&px[..3]),
-            png::ColorType::Grayscale | png::ColorType::GrayscaleAlpha => rgb.extend_from_slice(&[px[0]; 3]),
-            png::ColorType::Indexed => return Err(format!("{}: indexed PNGs are not supported", path.display())),
+            png::ColorType::Grayscale | png::ColorType::GrayscaleAlpha => {
+                rgb.extend_from_slice(&[px[0]; 3])
+            }
+            png::ColorType::Indexed => {
+                return Err(format!(
+                    "{}: indexed PNGs are not supported",
+                    path.display()
+                ))
+            }
         }
     }
     Ok((info.width as usize, info.height as usize, rgb))
@@ -32,7 +43,10 @@ fn read_png(path: &Path) -> Result<(usize, usize, Vec<u8>), String> {
 fn write_diff(path: &Path, w: usize, h: usize, a: &[u8], b: &[u8]) {
     let mut out = Vec::with_capacity(a.len());
     for i in 0..a.len() / 3 {
-        let d = (0..3).map(|c| a[i * 3 + c].abs_diff(b[i * 3 + c])).max().unwrap_or(0);
+        let d = (0..3)
+            .map(|c| a[i * 3 + c].abs_diff(b[i * 3 + c]))
+            .max()
+            .unwrap_or(0);
         let v = if d == 0 { 0 } else { 255 };
         out.extend_from_slice(&[v, 0, 0]);
     }
@@ -43,12 +57,19 @@ fn write_diff(path: &Path, w: usize, h: usize, a: &[u8], b: &[u8]) {
     let mut enc = png::Encoder::new(std::io::BufWriter::new(file), w as u32, h as u32);
     enc.set_color(png::ColorType::Rgb);
     enc.set_depth(png::BitDepth::Eight);
-    enc.write_header().expect("png header").write_image_data(&out).expect("png data");
+    enc.write_header()
+        .expect("png header")
+        .write_image_data(&out)
+        .expect("png data");
 }
 
 fn pairs(a: &Path, b: &Path) -> Result<Vec<(String, PathBuf, PathBuf)>, String> {
     if a.is_file() && b.is_file() {
-        return Ok(vec![(a.file_name().unwrap().to_string_lossy().into_owned(), a.to_path_buf(), b.to_path_buf())]);
+        return Ok(vec![(
+            a.file_name().unwrap().to_string_lossy().into_owned(),
+            a.to_path_buf(),
+            b.to_path_buf(),
+        )]);
     }
     let mut names: Vec<String> = std::fs::read_dir(a)
         .map_err(|e| format!("{}: {e}", a.display()))?
@@ -132,7 +153,10 @@ fn main() {
         let mut over = 0usize;
         let mut max = 0u8;
         for i in 0..a.len() / 3 {
-            let d = (0..3).map(|c| a[i * 3 + c].abs_diff(b[i * 3 + c])).max().unwrap_or(0);
+            let d = (0..3)
+                .map(|c| a[i * 3 + c].abs_diff(b[i * 3 + c]))
+                .max()
+                .unwrap_or(0);
             if d > 0 {
                 differing += 1;
                 if differing <= list_pixels {

@@ -20,7 +20,11 @@ pub fn to_degrees(rad: f64) -> f64 {
 /// `G3DUtils.limit(float)`.
 pub fn limit01(v: f32) -> f32 {
     if v >= 0.0 {
-        if v <= 1.0 { v } else { 1.0 }
+        if v <= 1.0 {
+            v
+        } else {
+            1.0
+        }
     } else {
         0.0
     }
@@ -29,7 +33,11 @@ pub fn limit01(v: f32) -> f32 {
 /// `G3DUtils.limit(float, min, max)`.
 pub fn limit(v: f32, min: f32, max: f32) -> f32 {
     if v >= min {
-        if v <= max { v } else { max }
+        if v <= max {
+            v
+        } else {
+            max
+        }
     } else {
         min
     }
@@ -37,14 +45,22 @@ pub fn limit(v: f32, min: f32, max: f32) -> f32 {
 
 pub fn limit_i(v: i32, min: i32, max: i32) -> i32 {
     if v >= min {
-        if v <= max { v } else { max }
+        if v <= max {
+            v
+        } else {
+            max
+        }
     } else {
         min
     }
 }
 
 pub fn limit_positive(v: f32) -> f32 {
-    if v >= 0.0 { v } else { 0.0 }
+    if v >= 0.0 {
+        v
+    } else {
+        0.0
+    }
 }
 
 /// `G3DUtils.round(float)`; Java's `(int)` cast saturates, Rust's `as` does too.
@@ -163,7 +179,12 @@ pub struct Quat {
 }
 
 impl Quat {
-    pub const IDENTITY: Quat = Quat { x: 0.0, y: 0.0, z: 0.0, w: 1.0 };
+    pub const IDENTITY: Quat = Quat {
+        x: 0.0,
+        y: 0.0,
+        z: 0.0,
+        w: 1.0,
+    };
 
     pub const fn new(x: f32, y: f32, z: f32, w: f32) -> Quat {
         Quat { x, y, z, w }
@@ -171,7 +192,12 @@ impl Quat {
 
     pub fn from_slice(v: &[f32]) -> Quat {
         assert!(v.len() == 4, "Invalid number of components for quaternion");
-        Quat { x: v[0], y: v[1], z: v[2], w: v[3] }
+        Quat {
+            x: v[0],
+            y: v[1],
+            z: v[2],
+            w: v[3],
+        }
     }
 
     pub fn normalize(&mut self) {
@@ -586,11 +612,21 @@ pub fn dp3(row: [f32; 3], v: [f32; 3]) -> f32 {
 
 impl Mat4 {
     pub fn row(&self, r: usize) -> [f32; 4] {
-        [self.m[r * 4], self.m[r * 4 + 1], self.m[r * 4 + 2], self.m[r * 4 + 3]]
+        [
+            self.m[r * 4],
+            self.m[r * 4 + 1],
+            self.m[r * 4 + 2],
+            self.m[r * 4 + 3],
+        ]
     }
 
     /// `M * v` with every output component evaluated by [`dp4`].
     pub fn transform_dp4(&self, v: [f32; 4]) -> [f32; 4] {
-        [dp4(self.row(0), v), dp4(self.row(1), v), dp4(self.row(2), v), dp4(self.row(3), v)]
+        [
+            dp4(self.row(0), v),
+            dp4(self.row(1), v),
+            dp4(self.row(2), v),
+            dp4(self.row(3), v),
+        ]
     }
 }

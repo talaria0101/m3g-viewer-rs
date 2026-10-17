@@ -201,7 +201,8 @@ fn morph_attribute(
         return Err("morph targets disagree about an array".into());
     }
     if null_targets == 0 {
-        let refs: Vec<&VertexArrayData> = targets.iter().map(|t| array(scene, t.unwrap())).collect();
+        let refs: Vec<&VertexArrayData> =
+            targets.iter().map(|t| array(scene, t.unwrap())).collect();
         let out = if colors {
             morph_colors(base_array, &refs, base_array, weights, base_weight)?
         } else {
@@ -216,7 +217,8 @@ fn morph_attribute(
 fn morph(scene: &Scene, m: &MorphingData) -> Result<ResolvedVb> {
     let vb = vertex_buffer(scene, m.mesh.vertices);
     let positions_id = vb.positions.ok_or("mesh has no vertex positions")?;
-    let target_vbs: Vec<&VertexBufferData> = m.targets.iter().map(|&t| vertex_buffer(scene, t)).collect();
+    let target_vbs: Vec<&VertexBufferData> =
+        m.targets.iter().map(|&t| vertex_buffer(scene, t)).collect();
     let base_weight = m.base_weight;
     let weights = &m.weights;
 
@@ -273,7 +275,10 @@ fn morph(scene: &Scene, m: &MorphingData) -> Result<ResolvedVb> {
         let t = morph_attribute(
             scene,
             vb.tex_coords[unit],
-            &target_vbs.iter().map(|t| t.tex_coords[unit]).collect::<Vec<_>>(),
+            &target_vbs
+                .iter()
+                .map(|t| t.tex_coords[unit])
+                .collect::<Vec<_>>(),
             weights,
             base_weight,
             false,
@@ -327,7 +332,14 @@ fn skin(scene: &Scene, mesh_id: Id, s: &SkinnedData) -> Result<ResolvedVb> {
 
     let mut tmp_positions = vec![0.0f32; vertex_count * 3];
     let mut tmp_normals = vec![0.0f32; vertex_count * 3];
-    let mut norms_out = vec![0i16; if mesh_norms.is_some() { vertex_count * 3 } else { 0 }];
+    let mut norms_out = vec![
+        0i16;
+        if mesh_norms.is_some() {
+            vertex_count * 3
+        } else {
+            0
+        }
+    ];
     let mut max_pos = [-f32::MAX; 3];
     let mut min_pos = [f32::MAX; 3];
 
@@ -398,7 +410,8 @@ fn skin(scene: &Scene, mesh_id: Id, s: &SkinnedData) -> Result<ResolvedVb> {
                         ((raw + 128) as f32) / 255f32 - 0.5f32
                     }
                 };
-                norms_out[i * 3 + axis] = math::round((norm_val + 0.5f32) * 65535.0 - 32768.0) as i16;
+                norms_out[i * 3 + axis] =
+                    math::round((norm_val + 0.5f32) * 65535.0 - 32768.0) as i16;
             }
         }
     }
@@ -413,7 +426,11 @@ fn skin(scene: &Scene, mesh_id: Id, s: &SkinnedData) -> Result<ResolvedVb> {
             max_axis_size = tmp_scale;
         }
     }
-    let scale = if max_axis_size != 0.0 { max_axis_size / 32767.0 } else { 1.0 };
+    let scale = if max_axis_size != 0.0 {
+        max_axis_size / 32767.0
+    } else {
+        1.0
+    };
 
     let mut positions = vec![0.0f32; vertex_count * 3];
     for i in 0..vertex_count {

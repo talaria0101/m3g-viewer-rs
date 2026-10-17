@@ -9,11 +9,12 @@ use std::collections::HashMap;
 
 use miniquad::gl as raw;
 use miniquad::{
-    Bindings, BlendFactor, BlendState, BlendValue, BufferId, BufferLayout, BufferSource, BufferType,
-    BufferUsage, Comparison, CullFace, Equation, FilterMode, FrontFaceOrder, MipmapFilterMode, PassAction,
-    Pipeline, PipelineParams, RenderingBackend, ShaderId, ShaderMeta, ShaderSource, TextureAccess,
-    TextureFormat, TextureId, TextureKind, TextureParams, TextureSource, TextureWrap, UniformBlockLayout,
-    UniformDesc, UniformType, UniformsSource, VertexAttribute, VertexFormat,
+    Bindings, BlendFactor, BlendState, BlendValue, BufferId, BufferLayout, BufferSource,
+    BufferType, BufferUsage, Comparison, CullFace, Equation, FilterMode, FrontFaceOrder,
+    MipmapFilterMode, PassAction, Pipeline, PipelineParams, RenderingBackend, ShaderId, ShaderMeta,
+    ShaderSource, TextureAccess, TextureFormat, TextureId, TextureKind, TextureParams,
+    TextureSource, TextureWrap, UniformBlockLayout, UniformDesc, UniformType, UniformsSource,
+    VertexAttribute, VertexFormat,
 };
 
 use crate::scene::*;
@@ -228,7 +229,9 @@ fn blend_state(mode: i32) -> Option<BlendState> {
 impl Gfx {
     pub fn new(ctx: &mut dyn RenderingBackend) -> Gfx {
         let mut uniforms = Vec::new();
-        for name in ["u_tc0", "u_tc1", "u_tc2", "u_tc3", "u_te0", "u_te1", "u_te2", "u_te3"] {
+        for name in [
+            "u_tc0", "u_tc1", "u_tc2", "u_tc3", "u_te0", "u_te1", "u_te2", "u_te3",
+        ] {
             uniforms.push(UniformDesc::new(name, UniformType::Float4));
         }
         for name in ["u_misc", "u_fog", "u_fog_color"] {
@@ -236,13 +239,30 @@ impl Gfx {
         }
         let meta = ShaderMeta {
             uniforms: UniformBlockLayout { uniforms },
-            images: vec!["u_tex0".into(), "u_tex1".into(), "u_tex2".into(), "u_tex3".into()],
+            images: vec![
+                "u_tex0".into(),
+                "u_tex1".into(),
+                "u_tex2".into(),
+                "u_tex3".into(),
+            ],
         };
         let shader = ctx
-            .new_shader(ShaderSource::Glsl { vertex: VERTEX, fragment: FRAGMENT }, meta)
+            .new_shader(
+                ShaderSource::Glsl {
+                    vertex: VERTEX,
+                    fragment: FRAGMENT,
+                },
+                meta,
+            )
             .unwrap_or_else(|e| panic!("shader compilation failed: {e:?}"));
         let white = ctx.new_texture_from_rgba8(1, 1, &[255, 255, 255, 255]);
-        Gfx { shader, pipelines: Vec::new(), textures: HashMap::new(), white, frame_buffers: Vec::new() }
+        Gfx {
+            shader,
+            pipelines: Vec::new(),
+            textures: HashMap::new(),
+            white,
+            frame_buffers: Vec::new(),
+        }
     }
 
     fn pipeline(&mut self, ctx: &mut dyn RenderingBackend, state: RasterState) -> Pipeline {
@@ -272,7 +292,10 @@ impl Gfx {
             ..Default::default()
         };
         let p = ctx.new_pipeline(
-            &[BufferLayout { stride, ..Default::default() }],
+            &[BufferLayout {
+                stride,
+                ..Default::default()
+            }],
             &attributes,
             self.shader,
             params,
@@ -298,9 +321,23 @@ impl Gfx {
             image_filter = f;
         }
         // The original never uploads mipmaps, so the base-level filter is all there is.
-        let filter = if image_filter == FILTER_LINEAR { FilterMode::Linear } else { FilterMode::Nearest };
-        let wrap = |w: i32| if w == WRAP_CLAMP { TextureWrap::Clamp } else { TextureWrap::Repeat };
-        let key = TexKey { filter, wrap_s: wrap(t.wrap_s), wrap_t: wrap(t.wrap_t) };
+        let filter = if image_filter == FILTER_LINEAR {
+            FilterMode::Linear
+        } else {
+            FilterMode::Nearest
+        };
+        let wrap = |w: i32| {
+            if w == WRAP_CLAMP {
+                TextureWrap::Clamp
+            } else {
+                TextureWrap::Repeat
+            }
+        };
+        let key = TexKey {
+            filter,
+            wrap_s: wrap(t.wrap_s),
+            wrap_t: wrap(t.wrap_t),
+        };
 
         if let Some((k, tex)) = self.textures.get(&id) {
             if *k == key {
@@ -316,12 +353,18 @@ impl Gfx {
         let mut rgba = Vec::with_capacity((image.width * image.height * 4) as usize);
         let d = &image.data;
         match image.format {
-            IMAGE_ALPHA => d.iter().for_each(|&a| rgba.extend_from_slice(&[0, 0, 0, a])),
-            IMAGE_LUMINANCE => d.iter().for_each(|&l| rgba.extend_from_slice(&[l, l, l, 255])),
-            IMAGE_LUMINANCE_ALPHA => {
-                d.chunks(2).for_each(|p| rgba.extend_from_slice(&[p[0], p[0], p[0], p[1]]))
-            }
-            IMAGE_RGB => d.chunks(3).for_each(|p| rgba.extend_from_slice(&[p[0], p[1], p[2], 255])),
+            IMAGE_ALPHA => d
+                .iter()
+                .for_each(|&a| rgba.extend_from_slice(&[0, 0, 0, a])),
+            IMAGE_LUMINANCE => d
+                .iter()
+                .for_each(|&l| rgba.extend_from_slice(&[l, l, l, 255])),
+            IMAGE_LUMINANCE_ALPHA => d
+                .chunks(2)
+                .for_each(|p| rgba.extend_from_slice(&[p[0], p[0], p[0], p[1]])),
+            IMAGE_RGB => d
+                .chunks(3)
+                .for_each(|p| rgba.extend_from_slice(&[p[0], p[1], p[2], 255])),
             _ => rgba.extend_from_slice(d),
         }
         let tex = ctx.new_texture(
@@ -368,8 +411,11 @@ impl Gfx {
             BufferSource::slice(call.vertices),
         );
         let indices: Vec<u32> = (0..vertex_count as u32).collect();
-        let index_buffer =
-            ctx.new_buffer(BufferType::IndexBuffer, BufferUsage::Stream, BufferSource::slice(&indices));
+        let index_buffer = ctx.new_buffer(
+            BufferType::IndexBuffer,
+            BufferUsage::Stream,
+            BufferSource::slice(&indices),
+        );
         self.frame_buffers.push(vertex_buffer);
         self.frame_buffers.push(index_buffer);
 
@@ -379,7 +425,11 @@ impl Gfx {
         // SAFETY: plain GL state calls on the context miniquad made current.
         unsafe {
             raw::glEnable(raw::GL_DEPTH_TEST);
-            raw::glDepthFunc(if call.state.depth_test { raw::GL_LEQUAL } else { raw::GL_ALWAYS });
+            raw::glDepthFunc(if call.state.depth_test {
+                raw::GL_LEQUAL
+            } else {
+                raw::GL_ALWAYS
+            });
             raw::glDepthMask(call.state.depth_write as u8);
             match call.state.polygon_offset {
                 Some((factor, units)) => {

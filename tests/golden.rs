@@ -42,9 +42,14 @@ fn dump(path: &str) -> Vec<String> {
     let base = path.rsplit('/').next().unwrap();
     let mut lines = Vec::new();
     let b = camera::bounds(&scene, world);
-    lines.push(format!("{base} bounds {}", b.iter().map(|v| hex(*v)).collect::<Vec<_>>().join(" ")));
+    lines.push(format!(
+        "{base} bounds {}",
+        b.iter().map(|v| hex(*v)).collect::<Vec<_>>().join(" ")
+    ));
     for t in TIMES {
-        scene.animate(world, t).unwrap_or_else(|e| panic!("{path} at {t}: {e}"));
+        scene
+            .animate(world, t)
+            .unwrap_or_else(|e| panic!("{path} at {t}: {e}"));
         let mut s = format!("t={t}");
         walk(&scene, world, &mut s);
         lines.push(s);

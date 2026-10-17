@@ -25,7 +25,11 @@ fn load_bytes(bytes: &[u8], tag: &str) -> Result<usize, String> {
 
 #[test]
 fn shipped_assets_load() {
-    for f in ["assets/walls.m3g", "assets/snake.m3g", "assets/obstacles.m3g"] {
+    for f in [
+        "assets/walls.m3g",
+        "assets/snake.m3g",
+        "assets/obstacles.m3g",
+    ] {
         let bytes = std::fs::read(f).unwrap();
         assert_eq!(load_bytes(&bytes, "ok"), Ok(3), "{f}");
     }

@@ -19,7 +19,11 @@ pub struct RenderPipe {
 
 impl RenderPipe {
     pub fn new() -> RenderPipe {
-        RenderPipe { parent_node: None, list: Vec::new(), render_invisible_nodes: false }
+        RenderPipe {
+            parent_node: None,
+            list: Vec::new(),
+            render_invisible_nodes: false,
+        }
     }
 
     pub fn clear(&mut self) {

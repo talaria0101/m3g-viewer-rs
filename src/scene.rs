@@ -130,8 +130,17 @@ impl Transformable {
     /// `getCompositeTransform`: T * R * S * M.
     pub fn composite(&self) -> Mat4 {
         let mut r = Mat4::IDENTITY;
-        r.post_translate(self.translation[0], self.translation[1], self.translation[2]);
-        r.post_rotate_quat(self.rotation.x, self.rotation.y, self.rotation.z, self.rotation.w);
+        r.post_translate(
+            self.translation[0],
+            self.translation[1],
+            self.translation[2],
+        );
+        r.post_rotate_quat(
+            self.rotation.x,
+            self.rotation.y,
+            self.rotation.z,
+            self.rotation.w,
+        );
         r.post_scale(self.scale[0], self.scale[1], self.scale[2]);
         r.post_multiply(&self.transform, false);
         r
@@ -430,7 +439,13 @@ pub struct FogData {
 
 impl Default for FogData {
     fn default() -> Self {
-        FogData { mode: FOG_LINEAR, density: 1.0, near: 0.0, far: 1.0, color: 0 }
+        FogData {
+            mode: FOG_LINEAR,
+            density: 1.0,
+            near: 0.0,
+            far: 1.0,
+            color: 0,
+        }
     }
 }
 
@@ -733,7 +748,11 @@ pub struct Scene {
 
 impl Scene {
     pub fn add(&mut self, kind: Kind) -> Id {
-        self.objs.push(Object { user_id: 0, tracks: Vec::new(), kind });
+        self.objs.push(Object {
+            user_id: 0,
+            tracks: Vec::new(),
+            kind,
+        });
         self.objs.len() - 1
     }
 
@@ -815,7 +834,9 @@ impl Scene {
     }
 
     pub fn composite_transform(&self, id: Id) -> Mat4 {
-        self.transformable(id).map(|t| t.composite()).unwrap_or_default()
+        self.transformable(id)
+            .map(|t| t.composite())
+            .unwrap_or_default()
     }
 
     pub fn root_of(&self, id: Id) -> Id {
@@ -881,15 +902,21 @@ impl Scene {
             let t = self.composite_transform(root_target);
             trans_target.post_multiply(&t, true);
             depth_target -= 1;
-            root_target = self.parent(root_target).expect("depth says a parent exists");
+            root_target = self
+                .parent(root_target)
+                .expect("depth says a parent exists");
         }
         while root_this != root_target {
             let t = self.composite_transform(root_this);
             trans_this.post_multiply(&t, true);
-            root_this = self.parent(root_this).expect("same root, so a parent exists");
+            root_this = self
+                .parent(root_this)
+                .expect("same root, so a parent exists");
             let t = self.composite_transform(root_target);
             trans_target.post_multiply(&t, true);
-            root_target = self.parent(root_target).expect("same root, so a parent exists");
+            root_target = self
+                .parent(root_target)
+                .expect("same root, so a parent exists");
         }
 
         trans_target.invert();
@@ -916,7 +943,9 @@ impl Scene {
         if self.is_parent_of(child, parent) {
             return Err("child is an ancestor of this Group".into());
         }
-        let g = self.group_mut(parent).ok_or_else(|| "parent is not a Group".to_string())?;
+        let g = self
+            .group_mut(parent)
+            .ok_or_else(|| "parent is not a Group".to_string())?;
         if !g.children.contains(&child) {
             g.children.push(child);
             self.node_base_mut(child).expect("checked above").parent = Some(parent);
@@ -972,9 +1001,16 @@ impl Scene {
         let is_transformable = is_node || matches!(k, Kind::Texture2D(_));
         match property {
             prop::ALPHA => {
-                is_node || matches!(k, Kind::Background(_) | Kind::Material(_) | Kind::VertexBuffer(_))
+                is_node
+                    || matches!(
+                        k,
+                        Kind::Background(_) | Kind::Material(_) | Kind::VertexBuffer(_)
+                    )
             }
-            prop::AMBIENT_COLOR | prop::DIFFUSE_COLOR | prop::EMISSIVE_COLOR | prop::SHININESS
+            prop::AMBIENT_COLOR
+            | prop::DIFFUSE_COLOR
+            | prop::EMISSIVE_COLOR
+            | prop::SHININESS
             | prop::SPECULAR_COLOR => matches!(k, Kind::Material(_)),
             prop::COLOR => matches!(
                 k,

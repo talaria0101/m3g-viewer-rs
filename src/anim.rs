@@ -23,7 +23,11 @@ pub struct KeyframeSequence {
 }
 
 impl KeyframeSequence {
-    pub fn new(keyframes: usize, components: usize, interpolation: i32) -> Result<KeyframeSequence> {
+    pub fn new(
+        keyframes: usize,
+        components: usize,
+        interpolation: i32,
+    ) -> Result<KeyframeSequence> {
         let valid_interp = (KF_LINEAR..=KF_STEP).contains(&interpolation);
         if keyframes < 1 || components < 1 || !valid_interp {
             return Err("KeyframeSequence: invalid arguments".into());
@@ -114,7 +118,11 @@ impl KeyframeSequence {
         let mut time = time;
         let duration = self.duration as f32;
         if self.repeat_mode == KF_LOOP {
-            time = if time < 0.0 { time % duration + duration } else { time % duration };
+            time = if time < 0.0 {
+                time % duration + duration
+            } else {
+                time % duration
+            };
             if time < self.times[self.valid_first] as f32 {
                 time += duration;
             }
@@ -176,9 +184,15 @@ impl KeyframeSequence {
                 self.update_tangents();
                 return Ok(());
             }
-            let next = if frame >= self.times.len() - 1 { 0 } else { frame + 1 };
+            let next = if frame >= self.times.len() - 1 {
+                0
+            } else {
+                frame + 1
+            };
             if self.times[next] < self.times[frame] || self.times[next] > self.duration {
-                return Err("KeyframeSequence: keyframe times are not ascending within the duration".into());
+                return Err(
+                    "KeyframeSequence: keyframe times are not ascending within the duration".into(),
+                );
             }
             next_index = next;
         }
@@ -274,7 +288,9 @@ impl KeyframeSequence {
     }
 
     fn incoming_scale(&self, frame: usize) -> f32 {
-        if self.repeat_mode != KF_CONSTANT || (frame != self.valid_first && frame != self.valid_last) {
+        if self.repeat_mode != KF_CONSTANT
+            || (frame != self.valid_first && frame != self.valid_last)
+        {
             let prev = self.before(frame);
             2.0f32 * (self.time_delta(prev) as f32)
                 / (self.time_delta(frame).wrapping_add(self.time_delta(prev)) as f32)
@@ -284,7 +300,9 @@ impl KeyframeSequence {
     }
 
     fn outgoing_scale(&self, frame: usize) -> f32 {
-        if self.repeat_mode != KF_CONSTANT || (frame != self.valid_first && frame != self.valid_last) {
+        if self.repeat_mode != KF_CONSTANT
+            || (frame != self.valid_first && frame != self.valid_last)
+        {
             let prev = self.before(frame);
             2.0f32 * (self.time_delta(frame) as f32)
                 / (self.time_delta(prev).wrapping_add(self.time_delta(frame)) as f32)
@@ -431,7 +449,9 @@ impl Scene {
     /// `updateProperty` dispatch, following the original's override chain.
     fn update_property(&mut self, id: Id, property: i32, v: &[f32]) -> Result<()> {
         let bad = |kind: &str| -> Result<()> {
-            Err(format!("Invalid animation target property {property} for {kind}"))
+            Err(format!(
+                "Invalid animation target property {property} for {kind}"
+            ))
         };
         let kind_name = self.objs[id].kind.name();
         match &mut self.objs[id].kind {
@@ -451,7 +471,11 @@ impl Scene {
                 let perspective = c.projection_type == CAMERA_PERSPECTIVE;
                 match property {
                     prop::FAR_DISTANCE => {
-                        c.projection[3] = if perspective { math::limit_positive(v[0]) } else { v[0] };
+                        c.projection[3] = if perspective {
+                            math::limit_positive(v[0])
+                        } else {
+                            v[0]
+                        };
                         Ok(())
                     }
                     prop::FIELD_OF_VIEW => {
@@ -463,10 +487,15 @@ impl Scene {
                         Ok(())
                     }
                     prop::NEAR_DISTANCE => {
-                        c.projection[2] = if perspective { math::limit_positive(v[0]) } else { v[0] };
+                        c.projection[2] = if perspective {
+                            math::limit_positive(v[0])
+                        } else {
+                            v[0]
+                        };
                         Ok(())
                     }
-                    _ => Self::update_node_property(&mut c.node, property, v).or_else(|_| bad(kind_name)),
+                    _ => Self::update_node_property(&mut c.node, property, v)
+                        .or_else(|_| bad(kind_name)),
                 }
             }
             Kind::Light(l) => match property {
@@ -486,16 +515,20 @@ impl Scene {
                     l.spot_exponent = math::limit(v[0], 0.0, 128.0);
                     Ok(())
                 }
-                _ => Self::update_node_property(&mut l.node, property, v).or_else(|_| bad(kind_name)),
+                _ => {
+                    Self::update_node_property(&mut l.node, property, v).or_else(|_| bad(kind_name))
+                }
             },
             Kind::Material(m) => {
                 match property {
                     prop::ALPHA => {
-                        m.diffuse = (m.diffuse & 0x00FF_FFFF) | (math::int_color(v) & (0xFF00_0000u32 as i32));
+                        m.diffuse = (m.diffuse & 0x00FF_FFFF)
+                            | (math::int_color(v) & (0xFF00_0000u32 as i32));
                     }
                     prop::AMBIENT_COLOR => m.ambient = math::int_color(v),
                     prop::DIFFUSE_COLOR => {
-                        m.diffuse = (m.diffuse & (0xFF00_0000u32 as i32)) | (math::int_color(v) & 0x00FF_FFFF);
+                        m.diffuse = (m.diffuse & (0xFF00_0000u32 as i32))
+                            | (math::int_color(v) & 0x00FF_FFFF);
                     }
                     prop::EMISSIVE_COLOR => m.emissive = math::int_color(v),
                     prop::SHININESS => m.shininess = math::limit(v[0], 0.0, 128.0),
@@ -541,10 +574,12 @@ impl Scene {
             Kind::Background(b) => {
                 match property {
                     prop::ALPHA => {
-                        b.color = (b.color & 0x00FF_FFFF) | (math::int_color(v) & (0xFF00_0000u32 as i32));
+                        b.color = (b.color & 0x00FF_FFFF)
+                            | (math::int_color(v) & (0xFF00_0000u32 as i32));
                     }
                     prop::COLOR => {
-                        b.color = (b.color & (0xFF00_0000u32 as i32)) | (math::int_color(v) & 0x00FF_FFFF);
+                        b.color = (b.color & (0xFF00_0000u32 as i32))
+                            | (math::int_color(v) & 0x00FF_FFFF);
                     }
                     prop::CROP => {
                         b.crop[0] = math::round(v[0]);
@@ -574,7 +609,11 @@ impl Scene {
         }
     }
 
-    fn update_node_property(n: &mut NodeBase, property: i32, v: &[f32]) -> std::result::Result<(), ()> {
+    fn update_node_property(
+        n: &mut NodeBase,
+        property: i32,
+        v: &[f32],
+    ) -> std::result::Result<(), ()> {
         match property {
             prop::ALPHA => {
                 n.alpha_factor = math::limit(v[0], 0.0, 1.0);

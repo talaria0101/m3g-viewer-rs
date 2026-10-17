@@ -16,12 +16,22 @@ const DEGREES_PER_PIXEL: f32 = 5.0;
 
 impl OrbitCamera {
     pub fn new() -> OrbitCamera {
-        OrbitCamera { yaw: 0.0, pitch: 25.0, distance: 8.0, move_speed: 3.0, target: [0.0; 3] }
+        OrbitCamera {
+            yaw: 0.0,
+            pitch: 25.0,
+            distance: 8.0,
+            move_speed: 3.0,
+            target: [0.0; 3],
+        }
     }
 
     /// `bounds` is `[minX, minY, minZ, maxX, maxY, maxZ]`.
     pub fn frame(&mut self, b: &[f32; 6]) {
-        self.target = [(b[0] + b[3]) * 0.5, (b[1] + b[4]) * 0.5, (b[2] + b[5]) * 0.5];
+        self.target = [
+            (b[0] + b[3]) * 0.5,
+            (b[1] + b[4]) * 0.5,
+            (b[2] + b[5]) * 0.5,
+        ];
         let sx = b[3] - b[0];
         let sy = b[4] - b[1];
         let sz = b[5] - b[2];
@@ -95,7 +105,11 @@ impl OrbitCamera {
 
     pub fn up(&self) -> Vec4 {
         let f = self.forward();
-        let reference = if f.y.abs() > 0.99 { Vec4::new(1.0, 0.0, 0.0, 0.0) } else { Vec4::new(0.0, 1.0, 0.0, 0.0) };
+        let reference = if f.y.abs() > 0.99 {
+            Vec4::new(1.0, 0.0, 0.0, 0.0)
+        } else {
+            Vec4::new(0.0, 1.0, 0.0, 0.0)
+        };
         let mut side = Vec4::cross(&f, &reference);
         side.normalize();
         let mut u = Vec4::cross(&side, &f);
@@ -157,7 +171,11 @@ pub fn bounds(scene: &Scene, root: Id) -> [f32; 6] {
             _ => continue,
         };
         let scale = vb.pos_scale_bias[0];
-        let bias = [vb.pos_scale_bias[1], vb.pos_scale_bias[2], vb.pos_scale_bias[3]];
+        let bias = [
+            vb.pos_scale_bias[1],
+            vb.pos_scale_bias[2],
+            vb.pos_scale_bias[3],
+        ];
         let count = array.vertex_count;
 
         let local = scene.composite_transform(n);

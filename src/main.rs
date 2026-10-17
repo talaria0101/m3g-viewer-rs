@@ -41,12 +41,14 @@ impl Loaded {
     fn load(file: &Path) -> std::result::Result<Loaded, String> {
         let mut scene = Scene::default();
         let name = file.to_string_lossy().into_owned();
-        let roots = loader::load(&mut scene, &name).map_err(|e| format!("Could not load {name}: {e}"))?;
+        let roots =
+            loader::load(&mut scene, &name).map_err(|e| format!("Could not load {name}: {e}"))?;
         if roots.is_empty() {
             return Err(format!("{name} contains no objects."));
         }
         let (root, world) = loader::pick_root(&scene, &roots);
-        let root = root.ok_or_else(|| format!("{name} contains no Node and cannot be displayed."))?;
+        let root =
+            root.ok_or_else(|| format!("{name} contains no Node and cannot be displayed."))?;
         Ok(Loaded { scene, root, world })
     }
 
@@ -104,7 +106,11 @@ fn parse_args(args: &[String]) -> Options {
         depth_out: None,
         quit_after: None,
         scene_camera: false,
-        config: Config { force_perspective_correction: false, disable_light_clamp: false, tex_filter: None },
+        config: Config {
+            force_perspective_correction: false,
+            disable_light_clamp: false,
+            tex_filter: None,
+        },
     };
     let mut i = 0;
     while i < args.len() {
@@ -115,7 +121,9 @@ fn parse_args(args: &[String]) -> Options {
             "--frames" => {
                 i += 1;
                 let v = next_value(args, i, "--frames");
-                o.frames = v.parse().unwrap_or_else(|_| fail(&format!("--frames needs a number, got {v}")));
+                o.frames = v
+                    .parse()
+                    .unwrap_or_else(|_| fail(&format!("--frames needs a number, got {v}")));
             }
             "--out" => {
                 i += 1;
@@ -128,7 +136,10 @@ fn parse_args(args: &[String]) -> Options {
             "--quit-after" => {
                 i += 1;
                 let v = next_value(args, i, "--quit-after");
-                o.quit_after = Some(v.parse().unwrap_or_else(|_| fail(&format!("--quit-after needs a number, got {v}"))));
+                o.quit_after =
+                    Some(v.parse().unwrap_or_else(|_| {
+                        fail(&format!("--quit-after needs a number, got {v}"))
+                    }));
             }
             "--dump-depth" => {
                 i += 1;
@@ -141,13 +152,18 @@ fn parse_args(args: &[String]) -> Options {
                 o.config.tex_filter = match next_value(args, i, "--tex-filter").as_str() {
                     "nearest" => Some(FILTER_NEAREST),
                     "linear" => Some(FILTER_LINEAR),
-                    v => fail(&format!("Unknown --tex-filter value: {v} (expected nearest or linear)")),
+                    v => fail(&format!(
+                        "Unknown --tex-filter value: {v} (expected nearest or linear)"
+                    )),
                 };
             }
             _ if a.starts_with("--") => fail(&format!("Unknown option: {a}")),
             _ => {
                 if let Some(prev) = &file {
-                    fail(&format!("More than one .m3g file given: {} and {a}", prev.display()));
+                    fail(&format!(
+                        "More than one .m3g file given: {} and {a}",
+                        prev.display()
+                    ));
                 }
                 file = Some(PathBuf::from(a));
             }
@@ -197,7 +213,10 @@ fn main() {
     let title = if batch {
         "m3g-viewer".to_string()
     } else {
-        opts.file.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default()
+        opts.file
+            .file_name()
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_default()
     };
     let conf = macroquad::miniquad::conf::Conf {
         window_title: title,
@@ -230,8 +249,11 @@ fn write_png(rgba: &[u8], width: usize, height: usize, flip: bool, out: &Path) {
     let mut enc = png::Encoder::new(std::io::BufWriter::new(file), width as u32, height as u32);
     enc.set_color(png::ColorType::Rgb);
     enc.set_depth(png::BitDepth::Eight);
-    let mut w = enc.write_header().unwrap_or_else(|e| fail(&format!("PNG error: {e}")));
-    w.write_image_data(&rgb).unwrap_or_else(|e| fail(&format!("PNG error: {e}")));
+    let mut w = enc
+        .write_header()
+        .unwrap_or_else(|e| fail(&format!("PNG error: {e}")));
+    w.write_image_data(&rgb)
+        .unwrap_or_else(|e| fail(&format!("PNG error: {e}")));
 }
 
 /// Reads the depth buffer of the current frame and writes it as raw little-endian f32.
@@ -240,32 +262,58 @@ fn write_depth(path: &Path, width: usize, height: usize) {
     // SAFETY: the buffer holds exactly width * height floats, which is what
     // glReadPixels(GL_DEPTH_COMPONENT, GL_FLOAT) writes for this rectangle.
     unsafe {
-        macroquad::miniquad::gl::glReadPixels(0, 0, width as i32, height as i32, 0x1902, 0x1406, depth.as_mut_ptr() as *mut _);
+        macroquad::miniquad::gl::glReadPixels(
+            0,
+            0,
+            width as i32,
+            height as i32,
+            0x1902,
+            0x1406,
+            depth.as_mut_ptr() as *mut _,
+        );
     }
     let bytes: Vec<u8> = depth.iter().flat_map(|d| d.to_le_bytes()).collect();
-    std::fs::write(path, bytes).unwrap_or_else(|e| fail(&format!("Could not write {}: {e}", path.display())));
+    std::fs::write(path, bytes)
+        .unwrap_or_else(|e| fail(&format!("Could not write {}: {e}", path.display())));
 }
 
 /// Perspective camera for scenes whose camera is not used, matching the orbit
 /// camera's field of view and depth range.
 fn synth_camera(aspect: f32) -> CameraData {
     let mut c = CameraData::new(NodeBase::default());
-    c.set_perspective(60.0, aspect, 0.05, 1000.0).expect("fixed arguments are valid");
+    c.set_perspective(60.0, aspect, 0.05, 1000.0)
+        .expect("fixed arguments are valid");
     c
 }
 
-fn set_frame_camera(renderer: &mut Renderer, loaded: &Loaded, scene_camera: bool, orbit: &OrbitCamera, w: u32, h: u32) {
-    let authored = if scene_camera { camera::scene_camera_transform(&loaded.scene, loaded.world) } else { None };
+fn set_frame_camera(
+    renderer: &mut Renderer,
+    loaded: &Loaded,
+    scene_camera: bool,
+    orbit: &OrbitCamera,
+    w: u32,
+    h: u32,
+) {
+    let authored = if scene_camera {
+        camera::scene_camera_transform(&loaded.scene, loaded.world)
+    } else {
+        None
+    };
     match authored {
         Some(t) => {
             let cam = match loaded.world.map(|w| loaded.scene.kind(w)) {
-                Some(Kind::World(wd)) => wd.active_camera.expect("a transform implies an active camera"),
+                Some(Kind::World(wd)) => wd
+                    .active_camera
+                    .expect("a transform implies an active camera"),
                 _ => unreachable!("a transform implies a world"),
             };
             renderer.set_camera(CameraSource::Scene(cam), Some(t));
         }
         None => {
-            renderer.set_camera(CameraSource::Synth(synth_camera(w as f32 / h as f32)), Some(orbit.view_matrix()));
+            renderer.set_camera(
+                CameraSource::Synth(synth_camera(w as f32 / h as f32)),
+                Some(orbit.view_matrix()),
+            );
         }
     }
 }
@@ -292,9 +340,16 @@ async fn run(opts: Options, mut loaded: Loaded, batch: bool) {
         // SAFETY: glGetString on the current context returns a NUL-terminated string or null.
         let renderer_name = unsafe {
             let p = macroquad::miniquad::gl::glGetString(0x1F01) as *const std::ffi::c_char;
-            if p.is_null() { String::from("?") } else { std::ffi::CStr::from_ptr(p).to_string_lossy().into_owned() }
+            if p.is_null() {
+                String::from("?")
+            } else {
+                std::ffi::CStr::from_ptr(p).to_string_lossy().into_owned()
+            }
         };
-        eprintln!("[m3g-viewer] {:?} | GL {} | {renderer_name}", info.backend, info.gl_version_string);
+        eprintln!(
+            "[m3g-viewer] {:?} | GL {} | {renderer_name}",
+            info.backend, info.gl_version_string
+        );
         // SAFETY: glGetIntegerv writes one GLint for each of these queries.
         let bits = |what: u32| unsafe {
             let mut v = 0i32;
@@ -316,9 +371,26 @@ async fn run(opts: Options, mut loaded: Loaded, batch: bool) {
 
     if batch {
         let out = opts.out.expect("batch mode always has an output path");
-        run_batch(&out, &opts.dump_dir, &opts.depth_out, opts.frames, opts.scene_camera, &mut renderer, &mut loaded, &orbit).await;
+        run_batch(
+            &out,
+            &opts.dump_dir,
+            &opts.depth_out,
+            opts.frames,
+            opts.scene_camera,
+            &mut renderer,
+            &mut loaded,
+            &orbit,
+        )
+        .await;
     } else {
-        run_interactive(opts.scene_camera, opts.quit_after, &mut renderer, &mut loaded, orbit).await;
+        run_interactive(
+            opts.scene_camera,
+            opts.quit_after,
+            &mut renderer,
+            &mut loaded,
+            orbit,
+        )
+        .await;
     }
 }
 
@@ -353,12 +425,21 @@ async fn run_batch(
             let (iw, ih) = (image.width as usize, image.height as usize);
             // get_screen_data returns rows bottom-up, like glReadPixels.
             if let Some(dir) = dump_dir {
-                write_png(&image.bytes, iw, ih, true, &dir.join(format!("frame_{frame:04}.png")));
+                write_png(
+                    &image.bytes,
+                    iw,
+                    ih,
+                    true,
+                    &dir.join(format!("frame_{frame:04}.png")),
+                );
             }
             if last {
                 write_png(&image.bytes, iw, ih, true, out);
                 let shown = std::fs::canonicalize(out).unwrap_or_else(|_| out.to_path_buf());
-                eprintln!("[m3g-viewer] wrote {} ({iw}x{ih}, {frames} frame(s))", shown.display());
+                eprintln!(
+                    "[m3g-viewer] wrote {} ({iw}x{ih}, {frames} frame(s))",
+                    shown.display()
+                );
             }
         }
         next_frame().await;

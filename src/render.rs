@@ -115,7 +115,12 @@ impl Renderer {
     }
 
     /// `clearBackground`: starts the frame. Background images are not drawn.
-    pub fn clear_background(&mut self, ctx: &mut dyn RenderingBackend, scene: &Scene, world: Option<Id>) {
+    pub fn clear_background(
+        &mut self,
+        ctx: &mut dyn RenderingBackend,
+        scene: &Scene,
+        world: Option<Id>,
+    ) {
         let background = world.and_then(|w| match scene.kind(w) {
             Kind::World(wd) => wd.background,
             _ => None,
@@ -166,10 +171,20 @@ impl Renderer {
     }
 
     /// `render(node, null)`: draws `root` and everything below it.
-    pub fn render(&mut self, ctx: &mut dyn RenderingBackend, scene: &Scene, root: Id) -> Result<()> {
+    pub fn render(
+        &mut self,
+        ctx: &mut dyn RenderingBackend,
+        scene: &Scene,
+        root: Id,
+    ) -> Result<()> {
         if !matches!(
             scene.kind(root),
-            Kind::Group(_) | Kind::World(_) | Kind::Mesh(_) | Kind::MorphingMesh(_) | Kind::SkinnedMesh(_) | Kind::Sprite3D(_)
+            Kind::Group(_)
+                | Kind::World(_)
+                | Kind::Mesh(_)
+                | Kind::MorphingMesh(_)
+                | Kind::SkinnedMesh(_)
+                | Kind::Sprite3D(_)
         ) {
             return Err("render: node must be a Sprite3D, Mesh or Group".into());
         }
@@ -191,8 +206,13 @@ impl Renderer {
                 );
                 continue;
             }
-            let mesh = scene.mesh(node).expect("non-sprite render objects are meshes");
-            let (Some(indices), Some(appearance)) = (mesh.submeshes.get(submesh).copied(), mesh.appearances[submesh]) else {
+            let mesh = scene
+                .mesh(node)
+                .expect("non-sprite render objects are meshes");
+            let (Some(indices), Some(appearance)) = (
+                mesh.submeshes.get(submesh).copied(),
+                mesh.appearances[submesh],
+            ) else {
                 continue;
             };
             if !resolved.contains_key(&node) {
@@ -208,7 +228,9 @@ impl Renderer {
             }
             let vb = &resolved[&node];
             let scope = mesh.node.scope;
-            if let Err(e) = self.render_vertex(ctx, scene, vb, indices, appearance, &trans, scope, alpha) {
+            if let Err(e) =
+                self.render_vertex(ctx, scene, vb, indices, appearance, &trans, scope, alpha)
+            {
                 result = Err(e);
                 break;
             }
@@ -287,7 +309,11 @@ impl Renderer {
                 let view_light = self.view.mul(light_to_world);
                 lights.push(Light::from_m3g(l, &view_light));
             }
-            let model_ambient = if self.lights.is_empty() { [1.0, 1.0, 1.0, 1.0] } else { [0.0, 0.0, 0.0, 1.0] };
+            let model_ambient = if self.lights.is_empty() {
+                [1.0, 1.0, 1.0, 1.0]
+            } else {
+                [0.0, 0.0, 0.0, 1.0]
+            };
             Lighting {
                 lights,
                 model_ambient,
@@ -336,7 +362,12 @@ impl Renderer {
                 [r as f32 * k, g as f32 * k, b as f32 * k, a as f32 * k]
             } else {
                 // glColor4ub goes through a table of `x / 255`.
-                [r as f32 / 255.0, g as f32 / 255.0, b as f32 / 255.0, a as f32 / 255.0]
+                [
+                    r as f32 / 255.0,
+                    g as f32 / 255.0,
+                    b as f32 / 255.0,
+                    a as f32 / 255.0,
+                ]
             }
         };
 
@@ -347,7 +378,12 @@ impl Renderer {
         let mut front = vec![[0.0f32; 4]; count];
         let mut back = vec![[0.0f32; 4]; count];
         for i in 0..count {
-            let p = [vb.positions[i * 3], vb.positions[i * 3 + 1], vb.positions[i * 3 + 2], 1.0];
+            let p = [
+                vb.positions[i * 3],
+                vb.positions[i * 3 + 1],
+                vb.positions[i * 3 + 2],
+                1.0,
+            ];
             clip[i] = mvp.transform_dp4(p);
             let eye_z = math::dp4(mv.row(2), p);
             fog_coord[i] = eye_z.abs();
@@ -379,7 +415,11 @@ impl Renderer {
                         [ne[0] * inv, ne[1] * inv, ne[2] * inv]
                     };
                     front[i] = l.light_vertex(eye, ne, vc, false);
-                    back[i] = if pm.two_sided_lighting { l.light_vertex(eye, ne, vc, true) } else { front[i] };
+                    back[i] = if pm.two_sided_lighting {
+                        l.light_vertex(eye, ne, vc, true)
+                    } else {
+                        front[i]
+                    };
                 }
             }
         }
@@ -392,7 +432,10 @@ impl Renderer {
                 continue;
             };
             if unit >= TEX_UNITS {
-                self.warn_once("tex-units", "Texture units beyond the fourth are not drawn.");
+                self.warn_once(
+                    "tex-units",
+                    "Texture units beyond the fourth are not drawn.",
+                );
                 continue;
             }
             let t = match scene.kind(tex_id) {
@@ -407,14 +450,27 @@ impl Renderer {
             let mut tm = t.tr.composite();
             // The renderer zeroes the third bias component before using it.
             gl_translate(&mut tm, coords.scale_bias[1], coords.scale_bias[2], 0.0);
-            gl_scale(&mut tm, coords.scale_bias[0], coords.scale_bias[0], coords.scale_bias[0]);
+            gl_scale(
+                &mut tm,
+                coords.scale_bias[0],
+                coords.scale_bias[0],
+                coords.scale_bias[0],
+            );
             let mut out = Vec::with_capacity(count);
             for i in 0..count {
                 let o = i * coords.components;
-                let r = if coords.components == 3 { coords.data[o + 2] } else { 0.0 };
+                let r = if coords.components == 3 {
+                    coords.data[o + 2]
+                } else {
+                    0.0
+                };
                 let v = [coords.data[o], coords.data[o + 1], r, 1.0];
                 // Texture matrix * (s, t, r, 1); a 2D lookup needs s, t and q only.
-                out.push([math::dp4(tm.row(0), v), math::dp4(tm.row(1), v), math::dp4(tm.row(3), v)]);
+                out.push([
+                    math::dp4(tm.row(0), v),
+                    math::dp4(tm.row(1), v),
+                    math::dp4(tm.row(3), v),
+                ]);
             }
             uvs[unit] = Some(out);
 
@@ -435,7 +491,12 @@ impl Renderer {
             let mut env = math::fill_float_color(t.blend_color);
             env[3] = 1.0;
             let texture = self.gfx.texture(ctx, scene, tex_id, self.cfg.tex_filter);
-            units[unit] = Some(TexUnit { texture, function, format, env_color: env });
+            units[unit] = Some(TexUnit {
+                texture,
+                function,
+                format,
+                env_color: env,
+            });
         }
 
         // Expand strips to a triangle list with GL's strip winding and provoking vertex.
@@ -456,7 +517,9 @@ impl Renderer {
                 for &v in &[a, b, c] {
                     let v = v as usize;
                     if v >= count || provoking >= count {
-                        return Err(format!("index {v} is outside the {count} vertices of the mesh"));
+                        return Err(format!(
+                            "index {v} is outside the {count} vertices of the mesh"
+                        ));
                     }
                     let src = if flat { provoking } else { v };
                     data.extend_from_slice(&clip[v]);
@@ -480,10 +543,19 @@ impl Renderer {
         };
         let state = RasterState {
             cull,
-            front_face: if pm.winding == WINDING_CW { FrontFaceOrder::Clockwise } else { FrontFaceOrder::CounterClockwise },
+            front_face: if pm.winding == WINDING_CW {
+                FrontFaceOrder::Clockwise
+            } else {
+                FrontFaceOrder::CounterClockwise
+            },
             depth_test: cm.depth_test,
             depth_write: cm.depth_write,
-            color_mask: (cm.color_write, cm.color_write, cm.color_write, cm.alpha_write),
+            color_mask: (
+                cm.color_write,
+                cm.color_write,
+                cm.color_write,
+                cm.alpha_write,
+            ),
             blending: cm.blending,
             polygon_offset: if cm.depth_offset_factor == 0.0 && cm.depth_offset_units == 0.0 {
                 None
