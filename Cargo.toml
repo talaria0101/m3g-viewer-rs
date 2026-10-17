@@ -1,0 +1,15 @@
+[package]
+name = "m3g-viewer"
+version = "0.1.0"
+edition = "2021"
+default-run = "m3g-viewer"
+description = "M3G (JSR-184) model viewer on macroquad, a port of the Java/LWJGL m3g_viewer"
+
+[dependencies]
+macroquad = "0.4.16"
+miniquad = "0.4.11"
+png = "0.17"
+miniz_oxide = "0.8"
+
+[profile.dev]
+opt-level = 1

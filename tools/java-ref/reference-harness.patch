@@ -1,0 +1,213 @@
+diff -ruN '--exclude=build' '--exclude=lib' '--exclude=assets' a/src/m3g/viewer/Dump.java b/src/m3g/viewer/Dump.java
+--- a/src/m3g/viewer/Dump.java	1970-01-01 00:00:00.000000000 +0000
++++ b/src/m3g/viewer/Dump.java	2026-10-17 08:52:58.404440908 +0000
+@@ -0,0 +1,58 @@
++package m3g.viewer;
++
++import javax.microedition.m3g.*;
++import java.util.*;
++
++public final class Dump {
++	static Set<Object3D> seen = new LinkedHashSet<>();
++	public static void main(String[] a) throws Exception {
++		Object3D[] roots = Loader.load(a[0]);
++		for (Object3D r : roots) walk(r, 0);
++		Map<String,Integer> counts = new TreeMap<>();
++		for (Object3D o : seen) counts.merge(o.getClass().getSimpleName(), 1, Integer::sum);
++		System.out.println("COUNTS " + counts);
++	}
++	static void walk(Object3D o, int d) {
++		boolean first = seen.add(o);
++		StringBuilder sb = new StringBuilder();
++		for (int i = 0; i < d; i++) sb.append("  ");
++		sb.append(o.getClass().getSimpleName()).append(first ? "" : " (seen)");
++		if (!first) { System.out.println(sb); return; }
++		if (o instanceof Transformable) {
++			float[] t = new float[4], s = new float[4], r = new float[4];
++			Transformable x = (Transformable) o;
++			x.getTranslation(t); x.getScale(s); x.getOrientation(r);
++			Transform tr = new Transform(); x.getTransform(tr); float[] m = new float[16]; tr.get(m);
++			sb.append(" T=").append(Arrays.toString(Arrays.copyOf(t,3))).append(" S=").append(Arrays.toString(Arrays.copyOf(s,3))).append(" R=").append(Arrays.toString(r));
++			boolean id = true; float[] I = {1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1}; for (int i=0;i<16;i++) if (m[i]!=I[i]) id=false;
++			if (!id) sb.append(" M=").append(Arrays.toString(m));
++		}
++		if (o instanceof Node) { Node n = (Node) o; sb.append(" render=").append(n.isRenderingEnabled()).append(" alpha=").append(n.getAlphaFactor()).append(" scope=").append(n.getScope()); }
++		if (o instanceof Mesh) { Mesh m = (Mesh) o; sb.append(" submeshes=").append(m.getSubmeshCount());
++			VertexBuffer vb = m.getVertexBuffer(); float[] sbias = new float[4]; VertexArray p = vb.getPositions(sbias);
++			sb.append(" vcount=").append(vb.getVertexCount()).append(" posType=").append(p.getComponentType()).append(" sb=").append(Arrays.toString(sbias));
++			sb.append(" normals=").append(vb.getNormals()==null?null:vb.getNormals().getComponentType()).append(" colors=").append(vb.getColors()!=null).append(" defcol=").append(Integer.toHexString(vb.getDefaultColor()));
++			for (int u=0;u<4;u++) if (vb.getTexCoords(u,null)!=null) sb.append(" uv").append(u).append("=").append(vb.getTexCoords(u,null).getComponentType()).append("x").append(vb.getTexCoords(u,null).getComponentCount());
++			for (int i=0;i<m.getSubmeshCount();i++) { Appearance ap = m.getAppearance(i); sb.append("\n").append("  ".repeat(d+1)).append("sub").append(i).append(" strips=").append(((TriangleStripArray)m.getIndexBuffer(i)).getStripCount()).append(" ap=").append(ap==null?"null":"layer"+ap.getLayer()+" cm="+(ap.getCompositingMode()!=null)+" fog="+(ap.getFog()!=null)+" pm="+(ap.getPolygonMode()!=null)+" mat="+(ap.getMaterial()!=null)+" tex0="+(ap.getTexture(0)!=null)); }
++		}
++		if (o instanceof PolygonMode) { PolygonMode p=(PolygonMode)o; sb.append(" cull=").append(p.getCulling()).append(" shade=").append(p.getShading()).append(" wind=").append(p.getWinding()).append(" 2side=").append(p.isTwoSidedLightingEnabled()).append(" local=").append(p.isLocalCameraLightingEnabled()).append(" persp=").append(p.isPerspectiveCorrectionEnabled()); }
++		if (o instanceof CompositingMode) { CompositingMode c=(CompositingMode)o; sb.append(" blend=").append(c.getBlending()).append(" dt=").append(c.isDepthTestEnabled()).append(" dw=").append(c.isDepthWriteEnabled()).append(" cw=").append(c.isColorWriteEnabled()).append(" aw=").append(c.isAlphaWriteEnabled()).append(" thr=").append(c.getAlphaThreshold()).append(" off=").append(c.getDepthOffsetFactor()).append(",").append(c.getDepthOffsetUnits()); }
++		if (o instanceof Material) { Material c=(Material)o; sb.append(" amb=").append(Integer.toHexString(c.getColor(1024))).append(" dif=").append(Integer.toHexString(c.getColor(2048))).append(" emi=").append(Integer.toHexString(c.getColor(4096))).append(" spe=").append(Integer.toHexString(c.getColor(8192))).append(" shin=").append(c.getShininess()).append(" vct=").append(c.isVertexColorTrackingEnabled()); }
++		if (o instanceof Texture2D) { Texture2D t=(Texture2D)o; sb.append(" blend=").append(t.getBlending()).append(" wrap=").append(t.getWrappingS()).append(",").append(t.getWrappingT()).append(" filt=").append(t.getImageFilter()).append(",").append(t.getLevelFilter()).append(" bc=").append(Integer.toHexString(t.getBlendColor())); }
++		if (o instanceof Image2D) { Image2D i=(Image2D)o; sb.append(" fmt=").append(i.getFormat()).append(" ").append(i.getWidth()).append("x").append(i.getHeight()); }
++		if (o instanceof Background) { Background b=(Background)o; sb.append(" color=").append(Integer.toHexString(b.getColor())).append(" img=").append(b.getImage()!=null).append(" cc=").append(b.isColorClearEnabled()).append(" dc=").append(b.isDepthClearEnabled()); }
++		if (o instanceof Fog) { Fog f=(Fog)o; sb.append(" mode=").append(f.getMode()).append(" color=").append(Integer.toHexString(f.getColor())).append(" near=").append(f.getNearDistance()).append(" far=").append(f.getFarDistance()).append(" dens=").append(f.getDensity()); }
++		if (o instanceof Light) { Light l=(Light)o; sb.append(" mode=").append(l.getMode()).append(" color=").append(Integer.toHexString(l.getColor())).append(" int=").append(l.getIntensity()); }
++		if (o instanceof Camera) { float[] p=new float[4]; int t=((Camera)o).getProjection(p); sb.append(" proj=").append(t).append(Arrays.toString(p)); }
++		if (o instanceof KeyframeSequence) { KeyframeSequence k=(KeyframeSequence)o; sb.append(" interp=").append(k.getInterpolationType()).append(" kf=").append(k.getKeyframeCount()).append(" comps=").append(k.getComponentCount()).append(" dur=").append(k.getDuration()).append(" rep=").append(k.getRepeatMode()).append(" vr=").append(k.getValidRangeFirst()).append("-").append(k.getValidRangeLast()); }
++		if (o instanceof AnimationController) { AnimationController c=(AnimationController)o; sb.append(" speed=").append(c.getSpeed()).append(" weight=").append(c.getWeight()).append(" ai=").append(c.getActiveIntervalStart()).append("-").append(c.getActiveIntervalEnd()).append(" refT=").append(c.getRefWorldTime()).append(" pos0=").append(c.getPosition(c.getRefWorldTime())); }
++		if (o instanceof AnimationTrack) { AnimationTrack t=(AnimationTrack)o; sb.append(" prop=").append(t.getTargetProperty()); }
++		if (o instanceof MorphingMesh) sb.append(" morphTargets=").append(((MorphingMesh)o).getMorphTargetCount());
++		if (o instanceof World) { World w=(World)o; sb.append(" cam=").append(w.getActiveCamera()!=null).append(" bg=").append(w.getBackground()!=null); }
++		sb.append(" tracks=").append(o.getAnimationTrackCount());
++		System.out.println(sb);
++		Object3D[] refs = new Object3D[o.getReferences(null)];
++		o.getReferences(refs);
++		for (Object3D r : refs) walk(r, d + 1);
++	}
++}
+diff -ruN '--exclude=build' '--exclude=lib' '--exclude=assets' a/src/m3g/viewer/Main.java b/src/m3g/viewer/Main.java
+--- a/src/m3g/viewer/Main.java	2026-10-17 03:50:09.000000000 +0000
++++ b/src/m3g/viewer/Main.java	2026-10-17 09:18:44.360532644 +0000
+@@ -117,6 +117,7 @@
+ 		window.open("m3g-viewer", 800, 600, false);
+ 
+ 		Renderer renderer = Renderer.create(config);
++		Log.info("framebuffer bits: depth " + org.lwjgl.opengl.GL11.glGetInteger(0x0D56) + " stencil " + org.lwjgl.opengl.GL11.glGetInteger(0x0D57) + " red " + org.lwjgl.opengl.GL11.glGetInteger(0x0D52) + " alpha " + org.lwjgl.opengl.GL11.glGetInteger(0x0D55));
+ 
+ 		int w = window.width();
+ 		int h = window.height();
+@@ -143,6 +144,19 @@
+ 			// frame.
+ 			if (frame == frames - 1) {
+ 				pixels = window.readPixels();
++				String depthFile = System.getProperty("m3g.depth");
++				if (depthFile != null) {
++					java.nio.FloatBuffer fb = org.lwjgl.BufferUtils.createFloatBuffer(w * h);
++					org.lwjgl.opengl.GL11.glReadPixels(0, 0, w, h, org.lwjgl.opengl.GL11.GL_DEPTH_COMPONENT, org.lwjgl.opengl.GL11.GL_FLOAT, fb);
++					java.nio.ByteBuffer bb = java.nio.ByteBuffer.allocate(w * h * 4).order(java.nio.ByteOrder.LITTLE_ENDIAN);
++					bb.asFloatBuffer().put(fb);
++					try { java.nio.file.Files.write(new File(depthFile).toPath(), bb.array()); } catch (IOException e) { throw new RuntimeException(e); }
++				}
++			}
++			String dumpDir = System.getProperty("m3g.dumpDir");
++			if (dumpDir != null) {
++				byte[] px = window.readPixels();
++				writePng(px, w, h, new File(dumpDir, String.format("frame_%04d.png", frame)));
+ 			}
+ 
+ 			window.swap();
+diff -ruN '--exclude=build' '--exclude=lib' '--exclude=assets' a/src/m3g/viewer/MorphDump.java b/src/m3g/viewer/MorphDump.java
+--- a/src/m3g/viewer/MorphDump.java	1970-01-01 00:00:00.000000000 +0000
++++ b/src/m3g/viewer/MorphDump.java	2026-10-17 09:22:26.055545799 +0000
+@@ -0,0 +1,25 @@
++package m3g.viewer;
++import javax.microedition.m3g.*;
++import m3g.render.MeshMorph;
++public final class MorphDump {
++	public static void main(String[] a) throws Exception {
++		Object3D[] roots = Loader.load(a[0]);
++		World w = null; for (Object3D o : roots) if (o instanceof World) w = (World) o;
++		w.setWorldTime(Integer.parseInt(a[1])); w.postFrame();
++		walk(w);
++	}
++	static void walk(Node n) {
++		if (n instanceof MorphingMesh) {
++			VertexBuffer vb = MeshMorph.getViewInstance().getMorphedVertexBuffer((Mesh) n);
++			float[] sb = new float[4];
++			VertexArray p = vb.getPositions(sb);
++			short[] s = p.getShortValues();
++			long h = 1125899906842597L; for (short v : s) h = 31*h + v;
++			System.out.println("pos hash " + h + " count " + s.length + " sb " + java.util.Arrays.toString(sb));
++			VertexArray nn = vb.getNormals(); short[] ns = nn.getShortValues(); h = 1125899906842597L; for (short v : ns) h = 31*h + v; System.out.println("norm hash " + h);
++			float[] sb2 = new float[4]; VertexArray u = vb.getTexCoords(0, sb2); short[] us = u.getShortValues(); h = 1125899906842597L; for (short v : us) h = 31*h + v; System.out.println("uv hash " + h + " sb " + java.util.Arrays.toString(sb2));
++			StringBuilder sbd = new StringBuilder(); for (int i = 0; i < 12; i++) sbd.append(s[i]).append(' '); System.out.println("first " + sbd);
++		}
++		if (n instanceof Group) for (int i = 0; i < ((Group) n).getChildCount(); i++) walk(((Group) n).getChild(i));
++	}
++}
+diff -ruN '--exclude=build' '--exclude=lib' '--exclude=assets' a/src/m3g/viewer/Renderer.java b/src/m3g/viewer/Renderer.java
+--- a/src/m3g/viewer/Renderer.java	2026-10-17 03:10:31.000000000 +0000
++++ b/src/m3g/viewer/Renderer.java	2026-10-17 09:19:23.197534948 +0000
+@@ -188,6 +188,7 @@
+ 
+ 		for (int i = 0; i < renderPipe.getSize(); i++) {
+ 			RenderObject ro = renderPipe.getRenderObj(i);
++			if (System.getProperty("m3g.only") != null && !java.util.Arrays.asList(System.getProperty("m3g.only").split(",")).contains(String.valueOf(i))) continue;
+ 
+ 			if (ro.node instanceof Mesh) {
+ 				Mesh mesh = (Mesh) ro.node;
+@@ -646,6 +647,18 @@
+ 
+ 		TriangleStripArray triangleStripArray = (TriangleStripArray) indexBuffer;
+ 		int stripCount = triangleStripArray.getStripCount();
++		if (System.getProperty("m3g.dumpmv") != null) {
++			java.nio.FloatBuffer fb = BufferUtils.createFloatBuffer(16);
++			GL11.glGetFloatv(0x0BA6, fb);
++			StringBuilder sb = new StringBuilder("MV");
++			for (int i = 0; i < 16; i++) sb.append(' ').append(Integer.toHexString(Float.floatToRawIntBits(fb.get(i))));
++			System.err.println(sb);
++			fb.clear();
++			GL11.glGetFloatv(0x0BA7, fb);
++			sb = new StringBuilder("PR");
++			for (int i = 0; i < 16; i++) sb.append(' ').append(Integer.toHexString(Float.floatToRawIntBits(fb.get(i))));
++			System.err.println(sb);
++		}
+ 
+ 		if (appearance != null && !this.xray) {
+ 			IntBuffer textureIds = BufferUtils.createIntBuffer(Limits.NUM_TEXTURE_UNITS);
+@@ -777,6 +790,7 @@
+ 			}
+ 
+ 			for (int i = 0; i < stripCount; ++i) {
++				if (System.getProperty("m3g.strip") != null && Integer.parseInt(System.getProperty("m3g.strip")) != i) continue;
+ 				int[] indexStrip = triangleStripArray.getIndexStrip(i);
+ 				GL11.glDrawElements(GL_TRIANGLE_STRIP, memoryBuffers.getElementsBuffer(indexStrip));
+ 			}
+diff -ruN '--exclude=build' '--exclude=lib' '--exclude=assets' a/src/m3g/viewer/StateDump.java b/src/m3g/viewer/StateDump.java
+--- a/src/m3g/viewer/StateDump.java	1970-01-01 00:00:00.000000000 +0000
++++ b/src/m3g/viewer/StateDump.java	2026-10-17 09:32:47.230582659 +0000
+@@ -0,0 +1,30 @@
++package m3g.viewer;
++import javax.microedition.m3g.*;
++import java.util.*;
++public final class StateDump {
++	static String hex(float v) { return Integer.toHexString(Float.floatToRawIntBits(v)); }
++	public static void main(String[] a) throws Exception {
++		for (String file : a) {
++			Object3D[] roots = Loader.load(file);
++			World w = null; for (Object3D o : roots) if (o instanceof World) w = (World) o;
++			float[] b = Main.Scene.boundsOf(w);
++			StringBuilder sb = new StringBuilder("bounds");
++			for (float v : b) sb.append(' ').append(hex(v));
++			System.out.println(file.substring(file.lastIndexOf('/') + 1) + " " + sb);
++			for (int t : new int[]{0, 16, 250, 777, 1600, 99999}) {
++				w.setWorldTime(t); w.postFrame();
++				StringBuilder out = new StringBuilder();
++				walk(w, out);
++				System.out.println("t=" + t + out);
++			}
++		}
++	}
++	static void walk(Node n, StringBuilder out) {
++		Transform tr = new Transform(); n.getCompositeTransform(tr); float[] m = new float[16]; tr.get(m);
++		out.append(" |");
++		for (float v : m) out.append(' ').append(hex(v));
++		out.append(" a=").append(hex(n.getAlphaFactor())).append(" r=").append(n.isRenderingEnabled());
++		if (n instanceof MorphingMesh) { float[] ws = new float[((MorphingMesh) n).getMorphTargetCount()]; ((MorphingMesh) n).getWeights(ws); for (float v : ws) out.append(" w=").append(hex(v)); out.append(" bw=").append(hex(((MorphingMesh) n).getBaseWeight())); }
++		if (n instanceof Group) for (int i = 0; i < ((Group) n).getChildCount(); i++) walk(((Group) n).getChild(i), out);
++	}
++}
+diff -ruN '--exclude=build' '--exclude=lib' '--exclude=assets' a/src/m3g/viewer/WeightDump.java b/src/m3g/viewer/WeightDump.java
+--- a/src/m3g/viewer/WeightDump.java	1970-01-01 00:00:00.000000000 +0000
++++ b/src/m3g/viewer/WeightDump.java	2026-10-17 09:22:11.352544927 +0000
+@@ -0,0 +1,15 @@
++package m3g.viewer;
++import javax.microedition.m3g.*;
++public final class WeightDump {
++	public static void main(String[] a) throws Exception {
++		Object3D[] roots = Loader.load(a[0]);
++		World w = null; for (Object3D o : roots) if (o instanceof World) w = (World) o;
++		int t = Integer.parseInt(a[1]);
++		w.setWorldTime(t); w.postFrame();
++		walk(w);
++	}
++	static void walk(Node n) {
++		if (n instanceof MorphingMesh) { float[] ws = new float[((MorphingMesh) n).getMorphTargetCount()]; ((MorphingMesh) n).getWeights(ws); System.out.println("weights " + Integer.toHexString(Float.floatToRawIntBits(ws[0])) + " base " + Integer.toHexString(Float.floatToRawIntBits(((MorphingMesh) n).getBaseWeight()))); }
++		if (n instanceof Group) for (int i = 0; i < ((Group) n).getChildCount(); i++) walk(((Group) n).getChild(i));
++	}
++}
